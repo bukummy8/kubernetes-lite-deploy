@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kubernetes-lite-api
+  labels:
+    app: kubernetes-lite-api
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: kubernetes-lite.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kubernetes-lite-api
+                port:
+                  number: 3000
