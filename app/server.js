@@ -1,7 +1,31 @@
 const express = require("express");
+const client = require("prom-client");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Enable default Node.js/process metrics
+client.collectDefaultMetrics();
+
+// Custom HTTP request counter
+const httpRequestsTotal = new client.Counter({
+  name: "http_requests_total",
+  help: "Total number of HTTP requests",
+  labelNames: ["method", "route", "status_code"]
+});
+
+// Request counter middleware
+app.use((req, res, next) => {
+  res.on("finish", () => {
+    httpRequestsTotal.inc({
+      method: req.method,
+      route: req.route?.path || req.path,
+      status_code: res.statusCode
+    });
+  });
+
+  next();
+});
 
 app.get("/", (req, res) => {
   res.json({
@@ -23,6 +47,12 @@ app.get("/api", (req, res) => {
     environment: process.env.NODE_ENV || "development",
     message: "Hello from the Kubernetes-Lite Deploy microservice!"
   });
+});
+
+// Prometheus metrics endpoint
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", client.register.contentType);
+  res.end(await client.register.metrics());
 });
 
 app.listen(PORT, () => {
