@@ -39,3 +39,9 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t kubernetes-lite-api:${{ github.sha }} ./app
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubectl apply --dry-run=client -f kubernetes/deployment.yaml
+          kubectl apply --dry-run=client -f kubernetes/service.yaml
+          kubectl apply --dry-run=client -f kubernetes/api-servicemonitor.yaml
