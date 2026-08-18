@@ -4,17 +4,14 @@ const client = require("prom-client");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enable default Node.js/process metrics
 client.collectDefaultMetrics();
 
-// Custom HTTP request counter
 const httpRequestsTotal = new client.Counter({
   name: "http_requests_total",
   help: "Total number of HTTP requests",
   labelNames: ["method", "route", "status_code"]
 });
 
-// Request counter middleware
 app.use((req, res, next) => {
   res.on("finish", () => {
     httpRequestsTotal.inc({
@@ -23,7 +20,6 @@ app.use((req, res, next) => {
       status_code: res.statusCode
     });
   });
-
   next();
 });
 
@@ -36,9 +32,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "healthy"
-  });
+  res.status(200).json({ status: "healthy" });
 });
 
 app.get("/api", (req, res) => {
@@ -49,12 +43,15 @@ app.get("/api", (req, res) => {
   });
 });
 
-// Prometheus metrics endpoint
 app.get("/metrics", async (req, res) => {
   res.set("Content-Type", client.register.contentType);
   res.end(await client.register.metrics());
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
