@@ -1,83 +1,380 @@
 # Kubernetes-Lite Deploy
 
-**Scaling microservices is hard.** This capstone addresses that Nigerian technology ecosystem challenge with a practical, lightweight deployment workflow: package a Node.js API, run it on K3s, scale it safely, expose it to users, and observe it with Kubernetes-native monitoring.
+A containerized Node.js microservice deployed, scaled, monitored, and validated on a lightweight Kubernetes cluster using K3s.
 
-## Completed MVP
+## Nigerian Problem Context
 
-Kubernetes-Lite Deploy is a containerized Node.js microservice running on a lightweight K3s Kubernetes cluster. The completed MVP includes:
+**Scaling microservices is hard.**
 
-- Dockerized Node.js/Express API with `/`, `/api`, `/health`, and Prometheus `/metrics` endpoints.
-- Kubernetes manifests for the application Deployment, NodePort Service, Ingress, and API `ServiceMonitor`.
-- A K3s deployment flow that imports the locally built Docker image into the cluster, so the application can run without pulling from a remote registry.
-- A Deployment configured for **3 replicas**. Scaling was demonstrated from 3 to 5 replicas and back to 3.
-- NodePort access on **30360** and Traefik Ingress routing for `kubernetes-lite.local`.
-- Liveness and readiness probes on `/health`, plus CPU and memory requests and limits.
-- Prometheus metrics collection through `/metrics` and a `ServiceMonitor` for the API.
-- kube-prometheus-stack and Grafana monitoring, including Prometheus, Grafana, kube-state-metrics, and node exporter components.
-- GitHub Actions CI that runs npm tests, checks JavaScript syntax, builds the Docker image, and validates Kubernetes YAML offline.
+As applications grow, manually managing multiple service instances becomes difficult. Kubernetes helps solve this problem by providing automated deployment, scaling, service discovery, health checks, and workload management.
+
+This project demonstrates a practical lightweight Kubernetes approach for deploying and operating a microservice.
+
+## Project Overview
+
+**Kubernetes-Lite Deploy** is a capstone project that deploys a small Node.js microservice to a K3s Kubernetes cluster.
+
+The project demonstrates the complete MVP workflow:
+
+**Develop → Test → Containerize → Validate → Deploy → Expose → Scale → Monitor**
+
+## Completed MVP Features
+
+* Kubernetes manifests
+* Docker containerization
+* Node.js microservice
+* K3s lightweight Kubernetes cluster
+* Local Docker image import into K3s
+* Kubernetes Deployment
+* 3 application replicas
+* Demonstrated scaling from 3 replicas to 5 replicas and back to 3
+* NodePort service on port `30360`
+* Kubernetes Ingress
+* Ingress host: `kubernetes-lite.local`
+* Liveness probes
+* Readiness probes
+* CPU and memory resource configuration
+* Prometheus `/metrics` endpoint
+* API ServiceMonitor
+* kube-prometheus-stack monitoring
+* Grafana deployment
+* GitHub Actions CI pipeline
+* API automated tests
+* JavaScript syntax validation
+* Docker image build validation
+* Offline Kubernetes YAML validation
+* API demonstration with `curl`
+* Git version control and GitHub repository
 
 ## Architecture
 
 ```text
-Developer → Docker image → local import → K3s cluster
-                                            │
-                         ┌──────────────────┴─────────────────┐
-                         │                                    │
-                    Deployment (3 pods)                  Monitoring
-                         │                         Prometheus + Grafana
-                         ▼                                    ▲
-                NodePort :30360 / Ingress ── ServiceMonitor ─ /metrics
-                         │
-                         ▼
-                 Node.js microservice
+Developer
+    │
+    ▼
+GitHub Repository
+    │
+    ▼
+GitHub Actions CI
+    │
+    ├── npm test
+    ├── JavaScript syntax check
+    ├── Docker image build
+    └── Offline YAML validation
+    │
+    ▼
+Docker Image
+    │
+    ▼
+Import Local Image into K3s
+    │
+    ▼
+K3s Kubernetes Cluster
+    │
+    ├── Deployment
+    │      │
+    │      ├── Pod
+    │      ├── Pod
+    │      └── Pod
+    │
+    ├── Service
+    │      │
+    │      └── NodePort :30360
+    │
+    ├── Ingress
+    │      │
+    │      └── kubernetes-lite.local
+    │
+    └── ServiceMonitor
+           │
+           ▼
+      Prometheus
+           │
+           ▼
+        Grafana
 ```
 
-## Repository structure
+## Application
+
+The application is a Node.js and Express microservice.
+
+Available endpoints:
+
+| Endpoint   | Description               |
+| ---------- | ------------------------- |
+| `/`        | Project information       |
+| `/health`  | Application health status |
+| `/api`     | API service information   |
+| `/metrics` | Prometheus metrics        |
+
+Example health response:
+
+```json
+{
+  "status": "healthy"
+}
+```
+
+## Kubernetes Deployment
+
+The application runs as a Kubernetes Deployment with a desired state of **3 replicas**.
+
+The project also demonstrated Kubernetes scaling by increasing the deployment to **5 replicas** and then returning it to **3 replicas**.
+
+The Deployment includes:
+
+* Container configuration
+* Resource requests and limits
+* Liveness probe
+* Readiness probe
+* Replica management
+
+Verify the deployment:
+
+```bash
+kubectl get deployment kubernetes-lite-api
+```
+
+Verify the pods:
+
+```bash
+kubectl get pods -l app=kubernetes-lite-api
+```
+
+## Service
+
+The application is exposed through a Kubernetes NodePort service.
+
+Service port:
 
 ```text
-.
+Application Port: 3000
+NodePort: 30360
+```
+
+Verify:
+
+```bash
+kubectl get svc kubernetes-lite-api
+```
+
+Test locally:
+
+```bash
+curl http://localhost:30360/
+curl http://localhost:30360/health
+curl http://localhost:30360/api
+```
+
+## Ingress
+
+The project includes a Kubernetes Ingress using Traefik.
+
+Ingress host:
+
+```text
+kubernetes-lite.local
+```
+
+Verify:
+
+```bash
+kubectl get ingress
+```
+
+Example test:
+
+```bash
+curl -H "Host: kubernetes-lite.local" http://10.0.2.15/
+```
+
+Health endpoint:
+
+```bash
+curl -H "Host: kubernetes-lite.local" http://10.0.2.15/health
+```
+
+API endpoint:
+
+```bash
+curl -H "Host: kubernetes-lite.local" http://10.0.2.15/api
+```
+
+## Monitoring
+
+The application exposes Prometheus-compatible metrics through:
+
+```text
+/metrics
+```
+
+Example:
+
+```bash
+curl http://localhost:30360/metrics
+```
+
+The project uses:
+
+* Prometheus
+* kube-prometheus-stack
+* Grafana
+* ServiceMonitor for the API
+
+The API ServiceMonitor allows Prometheus to discover and scrape the application metrics.
+
+Verify ServiceMonitors:
+
+```bash
+kubectl get servicemonitor -A
+```
+
+Verify monitoring pods:
+
+```bash
+kubectl get pods -n monitoring
+```
+
+Example Prometheus metric:
+
+```text
+http_requests_total
+```
+
+The application was successfully verified as a Prometheus scrape target with all API replicas reporting `up = 1`.
+
+## Scaling Demonstration
+
+Scale the application to 5 replicas:
+
+```bash
+kubectl scale deployment kubernetes-lite-api --replicas=5
+```
+
+Wait for the rollout:
+
+```bash
+kubectl rollout status deployment/kubernetes-lite-api
+```
+
+Verify:
+
+```bash
+kubectl get deployment kubernetes-lite-api
+kubectl get pods -l app=kubernetes-lite-api
+```
+
+Return to the project's desired state of 3 replicas:
+
+```bash
+kubectl scale deployment kubernetes-lite-api --replicas=3
+kubectl rollout status deployment/kubernetes-lite-api
+```
+
+## CI Pipeline
+
+GitHub Actions provides continuous integration for the project.
+
+The CI workflow performs:
+
+1. Repository checkout
+2. Node.js setup
+3. Dependency installation with `npm ci`
+4. API tests with `npm test`
+5. JavaScript syntax validation
+6. Docker image build validation
+7. Offline Kubernetes manifest YAML validation
+
+The workflow is located at:
+
+```text
+.github/workflows/ci.yml
+```
+
+## Project Structure
+
+```text
+kubernetes-lite-deploy/
 ├── app/
-│   ├── Dockerfile                 # Node.js application image
-│   ├── server.js                  # Express API and Prometheus metrics
-│   ├── package.json               # npm scripts and dependencies
-│   └── test/api.test.js           # API tests
+│   ├── test/
+│   │   └── api.test.js
+│   ├── .dockerignore
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── package-lock.json
+│   └── server.js
+│
 ├── kubernetes/
-│   ├── deployment.yaml            # 3-replica Deployment, probes, resources
-│   ├── service.yaml               # API Service / NodePort exposure
-│   ├── ingress.yaml               # kubernetes-lite.local route
-│   ├── api-servicemonitor.yaml    # Prometheus scrape configuration
-│   └── monitoring-values.yaml     # kube-prometheus-stack values
-└── .github/workflows/ci.yml       # CI validation pipeline
+│   ├── api-servicemonitor.yaml
+│   ├── deployment.yaml
+│   ├── ingress.yaml
+│   ├── monitoring-values.yaml
+│   └── service.yaml
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+│
+├── .gitignore
+└── README.md
 ```
 
 ## Prerequisites
 
-- Docker
-- Node.js 22 and npm
-- A running K3s cluster with `kubectl` configured
-- K3s' default Traefik Ingress controller
-- Helm 3, for kube-prometheus-stack/Grafana installation
+To run this project, install:
 
-## Setup and deployment
+* Git
+* Node.js
+* npm
+* Docker
+* Kubernetes CLI (`kubectl`)
+* K3s
+* Helm
+* curl
 
-Install the application dependencies and run the tests locally:
+## Setup
+
+Clone the repository:
+
+```bash
+git clone https://github.com/bukummy8/kubernetes-lite-deploy.git
+cd kubernetes-lite-deploy
+```
+
+Install application dependencies:
 
 ```bash
 cd app
 npm ci
+```
+
+Run the tests:
+
+```bash
 npm test
+```
+
+Check JavaScript syntax:
+
+```bash
 node --check server.js
+```
+
+Return to the project root:
+
+```bash
 cd ..
 ```
 
-Build the application image and import it into K3s. The Deployment uses `imagePullPolicy: Never`, so this local import is required:
+Build the Docker image:
 
 ```bash
-docker build -t kubernetes-lite-api:1.1 ./app
-docker save kubernetes-lite-api:1.1 | sudo k3s ctr images import -
+docker build -t kubernetes-lite-api:1.0 ./app
 ```
 
-Deploy the application resources:
+For a local K3s deployment, ensure the application image is available to the K3s container runtime.
+
+Apply the Kubernetes manifests:
 
 ```bash
 kubectl apply -f kubernetes/deployment.yaml
@@ -86,89 +383,109 @@ kubectl apply -f kubernetes/ingress.yaml
 kubectl apply -f kubernetes/api-servicemonitor.yaml
 ```
 
-Install or update the monitoring stack, then apply the `ServiceMonitor` again if it was created before the Prometheus Operator CRDs were available:
-
-```bash
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo update
-helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
-  --namespace monitoring --create-namespace \
-  -f kubernetes/monitoring-values.yaml
-kubectl apply -f kubernetes/api-servicemonitor.yaml
-```
-
-To resolve the Ingress hostname locally, add the K3s node IP to your hosts file:
-
-```text
-<K3S_NODE_IP> kubernetes-lite.local
-```
-
-## Verify and demonstrate
-
-Check rollout status, pods, and Service exposure:
+Verify the rollout:
 
 ```bash
 kubectl rollout status deployment/kubernetes-lite-api
-kubectl get pods -l app=kubernetes-lite-api
-kubectl get service kubernetes-lite-api
-kubectl get ingress kubernetes-lite-api
 ```
 
-Call the API through the NodePort and Ingress:
+## Useful Verification Commands
+
+Check cluster nodes:
 
 ```bash
-curl http://<K3S_NODE_IP>:30360/api
-curl http://kubernetes-lite.local/api
-curl http://kubernetes-lite.local/health
-curl http://kubernetes-lite.local/metrics
+kubectl get nodes
 ```
 
-Demonstrate horizontal scaling, then restore the intended 3-replica state:
+Check deployment:
 
 ```bash
-kubectl scale deployment/kubernetes-lite-api --replicas=5
-kubectl get pods -l app=kubernetes-lite-api
-kubectl scale deployment/kubernetes-lite-api --replicas=3
-kubectl rollout status deployment/kubernetes-lite-api
+kubectl get deployment kubernetes-lite-api
 ```
 
-Verify that Prometheus discovers the API monitor:
+Check pods:
 
 ```bash
-kubectl get servicemonitor kubernetes-lite-api
-kubectl -n monitoring port-forward service/monitoring-kube-prometheus-prometheus 9090:9090
+kubectl get pods -l app=kubernetes-lite-api -o wide
 ```
 
-Open `http://localhost:9090/targets` and confirm the API target is healthy. To access Grafana:
+Check service:
 
 ```bash
-kubectl -n monitoring port-forward service/monitoring-grafana 3001:80
+kubectl get svc kubernetes-lite-api
 ```
 
-Then open `http://localhost:3001` and sign in with the Grafana credentials configured for the monitoring release.
+Check ingress:
 
-## CI
+```bash
+kubectl get ingress
+```
 
-The GitHub Actions workflow runs on pushes and pull requests targeting `main`. It performs:
+Check ServiceMonitors:
 
-- `npm ci` and `npm test`
-- `node --check server.js`
-- a Docker image build
-- offline YAML parsing validation for the Kubernetes manifests
+```bash
+kubectl get servicemonitor -A
+```
 
-## Expected capstone deliverables
+Check monitoring workloads:
 
-- Source-controlled Node.js microservice, automated tests, and Dockerfile.
-- K3s deployment manifests with replicas, health probes, resource controls, Service, and Ingress.
-- Evidence of local image import and a successful K3s rollout.
-- A scaling demonstration from 3 to 5 replicas and back to 3.
-- Working NodePort (`30360`) and Ingress (`kubernetes-lite.local`) access.
-- Prometheus scraping through the API `ServiceMonitor` and Grafana monitoring evidence.
-- A passing GitHub Actions CI run.
+```bash
+kubectl get pods -n monitoring
+```
 
-## Future enhancements
+Test the application:
 
-- Deploy to a managed cloud Kubernetes service.
-- Provision infrastructure with Terraform.
-- Publish images to a container registry and extend CI into CD.
-- Add TLS, secrets management, alerting rules, dashboards, and autoscaling.
+```bash
+curl http://localhost:30360/
+curl http://localhost:30360/health
+curl http://localhost:30360/api
+```
+
+Check Prometheus metrics:
+
+```bash
+curl http://localhost:30360/metrics
+```
+
+## Capstone Deliverables
+
+The project deliverables include:
+
+* [x] GitHub repository
+* [x] Node.js microservice
+* [x] Docker configuration
+* [x] Kubernetes manifests
+* [x] K3s deployment
+* [x] Application scaling demonstration
+* [x] API demonstration
+* [x] GitHub Actions CI pipeline
+* [x] Prometheus monitoring
+* [x] Grafana monitoring
+* [x] Architecture documentation
+* [x] Project README
+* [ ] 2–3 minute demonstration video
+* [ ] Optional Infrastructure as Code
+* [ ] Optional cloud deployment
+
+## Future Enhancements
+
+Possible future improvements include:
+
+* Terraform Infrastructure as Code
+* Cloud Kubernetes deployment
+* Container image registry integration
+* CD pipeline with automated deployment
+* Horizontal Pod Autoscaler
+* Alertmanager rules and notifications
+* Custom Grafana dashboards
+* HTTPS and TLS certificates
+* Secret management
+* Multi-environment deployments
+
+## Project Status
+
+**MVP Status: Completed**
+
+The core capstone objective has been achieved: a Node.js microservice has been containerized, deployed to a lightweight K3s Kubernetes cluster, exposed through NodePort and Ingress, scaled successfully, monitored with Prometheus and Grafana, and validated through a GitHub Actions CI pipeline.
+
+The remaining primary capstone deliverable is the **2–3 minute demonstration video**.
