@@ -1,4 +1,4 @@
-name: CI
+name: CI-CD
 
 on:
   push:
@@ -8,10 +8,11 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   test-and-build:
-    name: Test and build
+    name: Test and Build
     runs-on: ubuntu-latest
 
     steps:
@@ -37,9 +38,6 @@ jobs:
         working-directory: app
         run: node --check server.js
 
-      - name: Build Docker image
-        run: docker build -t kubernetes-lite-api:${{ github.sha }} ./app
-
       - name: Validate Kubernetes manifests
         run: |
           python -m pip install --quiet pyyaml
@@ -49,6 +47,7 @@ jobs:
           files = [
               "kubernetes/deployment.yaml",
               "kubernetes/service.yaml",
+              "kubernetes/ingress.yaml",
               "kubernetes/api-servicemonitor.yaml",
           ]
 
@@ -57,3 +56,50 @@ jobs:
                   list(yaml.safe_load_all(f))
               print(f"Valid YAML: {file}")
           PY
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ghcr.io/bukummy8/kubernetes-lite-api:latest
+            ghcr.io/bukummy8/kubernetes-lite-api:${{ github.sha }}
+
+  deploy:
+    name: Deploy to K3s
+    needs: test-and-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, Linux, X64]
+
+    steps:
+      - name: Deploy exact commit image
+        run: |
+          kubectl set image deployment/kubernetes-lite-api \
+            kubernetes-lite-api=ghcr.io/bukummy8/kubernetes-lite-api:${{ github.sha }}
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/kubernetes-lite-api --timeout=180s
+
+      -       - name: Verify deployment
+        run: |
+          kubectl get deployment kubernetes-lite-api
+          kubectl get pods -l app=kubernetes-lite-api
+          kubectl get deployment kubernetes-lite-api \
+            -o jsonpath='{.spec.template.spec.containers[0].image}'
+          echo
+
+      - name: Verify API health
+        run: |
+          curl --fail --retry 5 --retry-delay 3 \
+            http://localhost:30360/health

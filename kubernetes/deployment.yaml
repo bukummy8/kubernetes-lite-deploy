@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: kubernetes-lite-api
-          image: kubernetes-lite-api:1.1
-          imagePullPolicy: Never
+          image: ghcr.io/bukummy8/kubernetes-lite-api:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 3000
 
