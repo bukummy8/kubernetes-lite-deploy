@@ -1,3 +1,80 @@
+name: CI-CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  test-and-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Run API tests
+        working-directory: app
+        run: npm test
+
+      - name: Check JavaScript syntax
+        working-directory: app
+        run: node --check server.js
+
+      - name: Validate Kubernetes manifests
+        run: |
+          python -m pip install --quiet pyyaml
+          python - <<'PY'
+          import yaml
+
+          files = [
+              "kubernetes/deployment.yaml",
+              "kubernetes/service.yaml",
+              "kubernetes/ingress.yaml",
+              "kubernetes/api-servicemonitor.yaml",
+          ]
+
+          for file in files:
+              with open(file, "r", encoding="utf-8") as f:
+                  list(yaml.safe_load_all(f))
+              print(f"Valid YAML: {file}")
+          PY
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ghcr.io/bukummy8/kubernetes-lite-api:latest
+            ghcr.io/bukummy8/kubernetes-lite-api:${{ github.sha }}
+
   deploy:
     name: Deploy to K3s
     needs: test-and-build
@@ -22,7 +99,7 @@
 
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/kubernetes-lite-api --timeout=180s
+          kubectl rollout status deployment/kubernetes-lite-api --timeout=300s
 
       - name: Verify deployment
         run: |
