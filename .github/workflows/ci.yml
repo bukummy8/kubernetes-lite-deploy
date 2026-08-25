@@ -1,80 +1,3 @@
-name: CI-CD
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
-  packages: write
-
-jobs:
-  test-and-build:
-    name: Test and Build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-
-      - name: Install dependencies
-        working-directory: app
-        run: npm ci
-
-      - name: Run API tests
-        working-directory: app
-        run: npm test
-
-      - name: Check JavaScript syntax
-        working-directory: app
-        run: node --check server.js
-
-      - name: Validate Kubernetes manifests
-        run: |
-          python -m pip install --quiet pyyaml
-          python - <<'PY'
-          import yaml
-
-          files = [
-              "kubernetes/deployment.yaml",
-              "kubernetes/service.yaml",
-              "kubernetes/ingress.yaml",
-              "kubernetes/api-servicemonitor.yaml",
-          ]
-
-          for file in files:
-              with open(file, "r", encoding="utf-8") as f:
-                  list(yaml.safe_load_all(f))
-              print(f"Valid YAML: {file}")
-          PY
-
-      - name: Log in to GitHub Container Registry
-        if: github.event_name == 'push'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        if: github.event_name == 'push'
-        uses: docker/build-push-action@v6
-        with:
-          context: ./app
-          push: true
-          tags: |
-            ghcr.io/bukummy8/kubernetes-lite-api:latest
-            ghcr.io/bukummy8/kubernetes-lite-api:${{ github.sha }}
-
   deploy:
     name: Deploy to K3s
     needs: test-and-build
@@ -82,6 +5,16 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/service.yaml
+          kubectl apply -f kubernetes/ingress.yaml
+          kubectl apply -f kubernetes/api-servicemonitor.yaml
+
       - name: Deploy exact commit image
         run: |
           kubectl set image deployment/kubernetes-lite-api \
