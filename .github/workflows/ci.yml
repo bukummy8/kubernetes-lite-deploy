@@ -91,7 +91,7 @@ jobs:
         run: |
           kubectl rollout status deployment/kubernetes-lite-api --timeout=180s
 
-      -       - name: Verify deployment
+      - name: Verify deployment
         run: |
           kubectl get deployment kubernetes-lite-api
           kubectl get pods -l app=kubernetes-lite-api
